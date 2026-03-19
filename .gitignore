@@ -1,0 +1,7 @@
+.claude/
+vocabulary.xlsx
+~$vocabulary.xlsx
+AAA_note.txt
+vocab_raw.txt
+debug_*.txt
+__pycache__/

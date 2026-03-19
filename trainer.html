@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Latein Vokabeltrainer</title>
+  <style>
+    :root {
+      --bg:       #f1f5f9;
+      --surface:  #ffffff;
+      --primary:  #4f46e5;
+      --pri-dark: #3730a3;
+      --pri-lite: #ede9fe;
+      --ok:       #16a34a;
+      --ok-lite:  #dcfce7;
+      --warn:     #b45309;
+      --warn-lite:#fef3c7;
+      --bad:      #dc2626;
+      --bad-lite: #fee2e2;
+      --text:     #0f172a;
+      --muted:    #64748b;
+      --border:   #e2e8f0;
+      --r:        14px;
+      --shadow:   0 2px 16px rgba(0,0,0,.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text);
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh;
+    }
+    /* ── screens ──────────────────────────────────────────── */
+    .screen {
+      display: none; flex-direction: column; align-items: center;
+      width: 100%; max-width: 480px; min-height: 100vh; padding: 0 20px 40px;
+    }
+    .screen.active { display: flex; }
+
+    /* ── shared buttons ───────────────────────────────────── */
+    .btn-main {
+      width: 100%; padding: 15px; border: none; border-radius: var(--r);
+      background: var(--primary); color: #fff;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: background .2s, transform .1s;
+    }
+    .btn-main:hover  { background: var(--pri-dark); }
+    .btn-main:active { transform: scale(.98); }
+    .btn-ghost {
+      width: 100%; padding: 13px; border: 2px solid var(--primary);
+      border-radius: var(--r); background: transparent; color: var(--primary);
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-ghost:hover { background: var(--pri-lite); }
+
+    /* ── HOME ─────────────────────────────────────────────── */
+    .home-title    { font-size: 2rem; font-weight: 700; margin-top: 48px; letter-spacing: -.5px; }
+    .home-sub      { color: var(--muted); font-size: .9rem; margin-bottom: 36px; }
+    .card-box {
+      width: 100%; background: var(--surface); border-radius: var(--r);
+      box-shadow: var(--shadow); padding: 22px; margin-bottom: 14px;
+    }
+    .box-label {
+      font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--muted); margin-bottom: 6px;
+    }
+    .mastery-num {
+      font-size: 2.4rem; font-weight: 700; color: var(--primary); line-height: 1;
+      margin-bottom: 14px;
+    }
+    .mastery-num span { font-size: 1.1rem; font-weight: 400; color: var(--muted); }
+    .bucket-bar {
+      display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--border);
+    }
+    .bucket-bar div { transition: width .5s ease; }
+    .legend {
+      display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 5px;
+      font-size: .78rem; color: var(--muted);
+    }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+    /* toggle */
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+    .row + .row { border-top: 1px solid var(--border); }
+    .row-label { font-size: .95rem; font-weight: 500; }
+    .toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: var(--border); border-radius: 24px; transition: .3s;
+    }
+    .slider::before {
+      content: ""; position: absolute;
+      width: 18px; height: 18px; left: 3px; bottom: 3px;
+      background: #fff; border-radius: 50%; transition: .3s;
+    }
+    .toggle input:checked + .slider { background: var(--primary); }
+    .toggle input:checked + .slider::before { transform: translateX(20px); }
+    .dir-label { font-size: .85rem; color: var(--muted); }
+    .btn-main { margin-bottom: 10px; }
+    .btn-reset {
+      background: none; border: none; color: var(--bad);
+      font-size: .85rem; cursor: pointer; padding: 6px; margin-top: 6px;
+    }
+    .btn-list-link {
+      background: none; border: none; color: var(--primary);
+      font-size: .85rem; cursor: pointer; padding: 6px; text-decoration: underline;
+    }
+    /* ── LIST SCREEN ──────────────────────────────────────────────────────── */
+    .list-header {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; padding: 16px 0 12px; position: sticky; top: 0;
+      background: var(--bg); z-index: 1;
+    }
+    .list-title { font-size: 1.1rem; font-weight: 700; flex: 1; }
+    .list-count { font-size: .82rem; color: var(--muted); }
+    .list-table {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface); border-radius: var(--r);
+      box-shadow: var(--shadow); overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .list-table tr { border-bottom: 1px solid var(--border); }
+    .list-table tr:last-child { border-bottom: none; }
+    .list-table td { padding: 10px 14px; font-size: .88rem; vertical-align: top; }
+    .list-table td:first-child { font-style: italic; width: 48%; border-right: 1px solid var(--border); }
+    .list-table td:last-child { color: var(--muted); }
+
+    /* ── CARD SCREEN ──────────────────────────────────────── */
+    .session-bar {
+      display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px 0 20px;
+    }
+    .btn-quit {
+      background: none; border: none; font-size: 1.1rem;
+      color: var(--muted); cursor: pointer; padding: 4px 8px;
+      border-radius: 8px; flex-shrink: 0;
+    }
+    .btn-quit:hover { background: var(--border); }
+    .prog-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .prog-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width .4s ease; }
+    .card-counter { font-size: .82rem; color: var(--muted); font-weight: 600; flex-shrink: 0; }
+    /* flip card */
+    .card-scene { width: 100%; perspective: 900px; flex: 1; display: flex; align-items: center; }
+    .card-wrap {
+      width: 100%; min-height: 260px; cursor: pointer; user-select: none;
+      transform-style: preserve-3d; transition: transform .55s cubic-bezier(.23,1,.32,1);
+      position: relative;
+    }
+    .card-wrap.flipped { transform: rotateY(180deg); }
+    .card-face {
+      position: absolute; inset: 0; width: 100%; min-height: 260px;
+      background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow);
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 32px 28px; text-align: center;
+    }
+    .card-back { transform: rotateY(180deg); background: #fafbff; }
+    .card-pill {
+      font-size: .7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; padding: 3px 12px; border-radius: 20px; margin-bottom: 18px;
+    }
+    .card-face:first-child .card-pill { background: var(--pri-lite); color: var(--primary); }
+    .card-back .card-pill { background: var(--ok-lite); color: var(--ok); }
+    .card-text {
+      font-size: clamp(1.1rem, 4vw, 1.55rem);
+      font-weight: 600; line-height: 1.5; color: var(--text);
+      overflow-wrap: break-word; word-break: break-word; max-width: 100%;
+    }
+    .card-hint { margin-top: 24px; font-size: .82rem; color: var(--muted); }
+    .kbd-hint   { font-size: .72rem; color: #c4b5fd; margin-top: 4px; }
+    /* rating */
+    .rating-row {
+      display: flex; gap: 10px; width: 100%; padding: 20px 0 8px;
+      opacity: 0; pointer-events: none; transition: opacity .25s;
+    }
+    .rating-row.visible { opacity: 1; pointer-events: auto; }
+    .btn-rate {
+      flex: 1; padding: 14px 6px; border: none; border-radius: var(--r);
+      font-size: .85rem; font-weight: 600; cursor: pointer; line-height: 1.4;
+      transition: transform .1s;
+    }
+    .btn-rate:active { transform: scale(.95); }
+    .rate-wrong  { background: var(--bad-lite);  color: var(--bad);  }
+    .rate-almost { background: var(--warn-lite); color: var(--warn); }
+    .rate-ok     { background: var(--ok-lite);   color: var(--ok);   }
+    .rate-wrong:hover  { background: #fecaca; }
+    .rate-almost:hover { background: #fde68a; }
+    .rate-ok:hover     { background: #bbf7d0; }
+    .kbd-row { text-align: center; font-size: .72rem; color: var(--muted); padding-bottom: 4px; }
+
+    /* ── SUMMARY ──────────────────────────────────────────── */
+    .sum-title  { font-size: 1.8rem; font-weight: 700; margin-top: 48px; }
+    .sum-sub    { color: var(--muted); margin: 6px 0 28px; }
+    .stats-row  { display: flex; gap: 10px; width: 100%; margin-bottom: 16px; }
+    .stat-box   {
+      flex: 1; background: var(--surface); border-radius: var(--r);
+      box-shadow: var(--shadow); padding: 18px 10px; text-align: center;
+    }
+    .stat-n     { font-size: 2rem; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+    .stat-lbl   { font-size: .78rem; color: var(--muted); font-weight: 500; }
+    .stat-ok   .stat-n { color: var(--ok);   }
+    .stat-alm  .stat-n { color: var(--warn); }
+    .stat-bad  .stat-n { color: var(--bad);  }
+    .sum-info {
+      width: 100%; background: var(--surface); border-radius: var(--r);
+      box-shadow: var(--shadow); padding: 18px 22px; margin-bottom: 16px;
+      text-align: center; font-size: .92rem; color: var(--muted);
+    }
+    .sum-info strong { color: var(--primary); font-size: 1.05rem; }
+    .missed-box {
+      width: 100%; background: var(--surface); border-radius: var(--r);
+      box-shadow: var(--shadow); padding: 16px 20px; margin-bottom: 20px;
+    }
+    .missed-title {
+      font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--muted); margin-bottom: 10px;
+    }
+    .missed-item {
+      display: flex; justify-content: space-between; align-items: baseline;
+      gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border);
+      font-size: .88rem;
+    }
+    .missed-item:last-child { border-bottom: none; }
+    .m-la { font-style: italic; flex-shrink: 0; }
+    .m-de { color: var(--muted); text-align: right; }
+    .btn-main { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HOME ═══════════════════════════════════════════════════════════════ -->
+<div id="screen-home" class="screen">
+  <h1 class="home-title">🏛️ Latein Trainer</h1>
+  <p class="home-sub">Vokabeltrainer für das Abitur</p>
+
+  <div class="card-box">
+    <div class="box-label">Fortschritt</div>
+    <div class="mastery-num" id="h-mastery">0 <span>/ 569 gelernt</span></div>
+    <div class="bucket-bar" id="h-bar"></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#e2e8f0"></div>Neu</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Lernend</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>Gelernt</div>
+    </div>
+  </div>
+
+  <div class="card-box">
+    <div class="row">
+      <span class="row-label">Richtung</span>
+      <span class="dir-label" id="h-dir-label">Latein → Deutsch</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Umkehren (DE → LA)</span>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-dir">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <button class="btn-main" id="btn-start">Übung starten (5 Karten)</button>
+  <button class="btn-list-link" id="btn-list">Alle Vokabeln anzeigen</button>
+  <button class="btn-reset" id="btn-reset">Fortschritt zurücksetzen</button>
+</div>
+
+<!-- ═══ LIST ═════════════════════════════════════════════════════════════════ -->
+<div id="screen-list" class="screen">
+  <div class="list-header">
+    <button class="btn-quit" id="btn-list-back">←</button>
+    <span class="list-title">Alle Vokabeln</span>
+    <span class="list-count">569 Einträge</span>
+  </div>
+  <table class="list-table" id="list-table"></table>
+</div>
+
+<!-- ═══ CARD ════════════════════════════════════════════════════════════════ -->
+<div id="screen-card" class="screen">
+  <div class="session-bar">
+    <button class="btn-quit" id="btn-quit" title="Abbrechen">✕</button>
+    <div class="prog-bar"><div class="prog-fill" id="c-fill"></div></div>
+    <span class="card-counter" id="c-counter">1 / 20</span>
+  </div>
+
+  <div class="card-scene">
+    <div class="card-wrap" id="card-wrap" tabindex="0" role="button">
+      <div class="card-face card-front">
+        <div class="card-pill" id="front-pill">Latein</div>
+        <div class="card-text" id="front-text"></div>
+        <div class="card-hint">Tippen zum Umdrehen</div>
+        <div class="kbd-hint">[ Leertaste ]</div>
+      </div>
+      <div class="card-face card-back">
+        <div class="card-pill" id="back-pill">Deutsch</div>
+        <div class="card-text" id="back-text"></div>
+        <div class="kbd-hint" style="margin-top:20px">[1] Nicht gewusst · [2] Fast · [3] Gewusst</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rating-row" id="rating-row">
+    <button class="btn-rate rate-wrong"  data-r="0">✗<br><small>Nicht gewusst</small></button>
+    <button class="btn-rate rate-almost" data-r="1">～<br><small>Fast</small></button>
+    <button class="btn-rate rate-ok"     data-r="2">✓<br><small>Gewusst!</small></button>
+  </div>
+</div>
+
+<!-- ═══ SUMMARY ══════════════════════════════════════════════════════════════ -->
+<div id="screen-summary" class="screen">
+  <h2 class="sum-title">Gut gemacht! 🎉</h2>
+  <p class="sum-sub" id="sum-sub"></p>
+
+  <div class="stats-row">
+    <div class="stat-box stat-ok">
+      <div class="stat-n" id="s-ok">0</div><div class="stat-lbl">Gewusst</div>
+    </div>
+    <div class="stat-box stat-alm">
+      <div class="stat-n" id="s-alm">0</div><div class="stat-lbl">Fast</div>
+    </div>
+    <div class="stat-box stat-bad">
+      <div class="stat-n" id="s-bad">0</div><div class="stat-lbl">Nicht gewusst</div>
+    </div>
+  </div>
+
+  <div class="sum-info" id="s-mastery"></div>
+
+  <div class="missed-box" id="missed-box">
+    <div class="missed-title">Noch üben</div>
+    <div id="missed-items"></div>
+  </div>
+
+  <button class="btn-main"  id="btn-again">Weiter üben</button>
+  <button class="btn-ghost" id="btn-home">Startseite</button>
+</div>
+
+<script>
+/* ── vocabulary data ─────────────────────────────────────────────────────── */
+const VOCAB = [{"id": 0, "la": "a / ab / abs (Präposition + Abl.)", "de": "von, von ... her, seit"}, {"id": 1, "la": "accedere, accedo, accessi (accessurus)", "de": "heranrücken, hinzutreten, dazukommen"}, {"id": 2, "la": "ad (Präposition + Akk.)", "de": "zu, an, bei, gegen"}, {"id": 3, "la": "adipisci, adipiscor, adeptus sum", "de": "erreichen, erringen"}, {"id": 4, "la": "adulescens, -entis (m.)", "de": "junger Mann"}, {"id": 5, "la": "aetas, -atis (f.)", "de": "Lebensalter, Lebenszeit, Zeit(alter)"}, {"id": 6, "la": "ager, agri (m.)", "de": "Acker, Feld, Gebiet"}, {"id": 7, "la": "agere, ago, egi, actum", "de": "(be)treiben, (ver)handeln, ausführen"}, {"id": 8, "la": "cogere, cogo, coegi, coactum", "de": "zwingen, zusammentreiben, sammeln"}, {"id": 9, "la": "cogitare", "de": "denken, bedenken, mit Inf.: beabsichtigen"}, {"id": 10, "la": "alere, alo, alui, altum", "de": "ernähren, fördern"}, {"id": 11, "la": "alius, alia, aliud Gen.: alterius, Dat.: alteri", "de": "ein anderer"}, {"id": 12, "la": "alienus, -a, -um", "de": "fremd, abgeneigt, unpassend"}, {"id": 13, "la": "aliquis, aliquid", "de": "irgendjemand, irgendetwas"}, {"id": 14, "la": "aliqui, aliqua, aliquod", "de": "irgendein, irgendeine, irgendein"}, {"id": 15, "la": "aliquando", "de": "(irgendwann) einmal, einst"}, {"id": 16, "la": "altus, -a, -um", "de": "hoch, tief"}, {"id": 17, "la": "amare", "de": "lieben"}, {"id": 18, "la": "amor, -oris (m.)", "de": "Liebe"}, {"id": 19, "la": "amicus, -i (m.)", "de": "Freund"}, {"id": 20, "la": "amicitia, -ae (f.)", "de": "Freundschaft"}, {"id": 21, "la": "inimicitiae, -arum (f. Pl.)", "de": "Feindschaft"}, {"id": 22, "la": "amplus, -a, -um", "de": "weit, bedeutend, ansehnlich, prächtig"}, {"id": 23, "la": "an", "de": "ob, ob nicht; in der indirekten Frage: oder"}, {"id": 24, "la": "animus, -i (m.)", "de": "Seele, Geist, Mut, Gesinnung, Einstellung"}, {"id": 25, "la": "animus aequus", "de": "Gelassenheit"}, {"id": 26, "la": "anima, -ae (f.)", "de": "Atem, Seele, Leben"}, {"id": 27, "la": "annus, -i (m.)", "de": "Jahr"}, {"id": 28, "la": "ante (Präposition + Akk.)", "de": "vor"}, {"id": 29, "la": "ante/antea (Adverb)", "de": "vorher"}, {"id": 30, "la": "aperire, aperio, aperui, apertum", "de": "öffnen, aufdecken"}, {"id": 31, "la": "apud (Präposition + Akk.)", "de": "bei (bei Personen)"}, {"id": 32, "la": "aqua, -ae (f.)", "de": "Wasser"}, {"id": 33, "la": "ara, -ae (f.)", "de": "Altar"}, {"id": 34, "la": "arbitrari, arbitror, arbitratus sum", "de": "glauben, meinen"}, {"id": 35, "la": "ardēre, ardeo, arsi, (arsurus)", "de": "brennen, glühen"}, {"id": 36, "la": "arma, -orum (n. Pl.)", "de": "Waffen, Gerät"}, {"id": 37, "la": "ars, artis (f.)", "de": "Kunst, Fertigkeit, Wissenschaft"}, {"id": 38, "la": "at", "de": "aber, dagegen"}, {"id": 39, "la": "atque / ac", "de": "und"}, {"id": 40, "la": "audēre, audeo, ausus sum", "de": "wagen"}, {"id": 41, "la": "audax, Gen. audacis", "de": "mutig, kühn, verwegen"}, {"id": 42, "la": "audacia, -ae (f.)", "de": "Mut, Kühnheit, Frechheit"}, {"id": 43, "la": "augēre, augeo, auxi, auctum", "de": "vergrößern, vermehren, fördern"}, {"id": 44, "la": "auxilium, -i (n.)", "de": "Hilfe; im Plural: Hilfstruppen"}, {"id": 45, "la": "aura, -ae (f.)", "de": "Luft, Hauch, Gunst"}, {"id": 46, "la": "auris, -is (f.)", "de": "Ohr"}, {"id": 47, "la": "aut", "de": "oder"}, {"id": 48, "la": "aut ... aut", "de": "entweder ... oder"}, {"id": 49, "la": "autem", "de": "aber, jedoch"}, {"id": 50, "la": "avaritia, -ae (f.)", "de": "Habsucht, Geiz"}, {"id": 51, "la": "beatus, -a, -um", "de": "glücklich, beglückt"}, {"id": 52, "la": "bellum, -i (n.)", "de": "Krieg"}, {"id": 53, "la": "bellum gerere", "de": "Krieg führen"}, {"id": 54, "la": "bonus, -a, -um (Kompar.: melior, -ius, Superl.: optimus, -a, -um)", "de": "gut, tüchtig"}, {"id": 55, "la": "bene (Adverb)", "de": "gut"}, {"id": 56, "la": "brevis, breve", "de": "kurz"}, {"id": 57, "la": "brevi (Adv.)", "de": "in Kürze, bald"}, {"id": 58, "la": "cadere, cado, cecidi (casurus)", "de": "fallen"}, {"id": 59, "la": "accidere, accidit, accidit", "de": "es ereignet sich"}, {"id": 60, "la": "casus, -ūs (m.)", "de": "Fall, Zufall, Unglück"}, {"id": 61, "la": "caedes, -is (f.)", "de": "Mord, Blutbad"}, {"id": 62, "la": "occīdere, occīdo, occīdi, occīsum", "de": "niederschlagen, töten"}, {"id": 63, "la": "caelum, -i (n.)", "de": "Himmel, Wetter"}, {"id": 64, "la": "calamitas, -atis (f.)", "de": "Unglück, Schaden, Niederlage"}, {"id": 65, "la": "capere, capio, cēpi, captum", "de": "ergreifen, erobern, fassen, begreifen"}, {"id": 66, "la": "accipere, accipio, accēpi, acceptum", "de": "annehmen, vernehmen, empfangen"}, {"id": 67, "la": "incipere, incipio, coepi, coeptum/inceptum", "de": "anfangen"}, {"id": 68, "la": "occupare", "de": "besetzen, einnehmen"}, {"id": 69, "la": "recipere, recipio, recēpi, receptum", "de": "aufnehmen, zurücknehmen"}, {"id": 70, "la": "suscipere, suscipio, suscēpi, susceptum", "de": "auf sich nehmen, übernehmen"}, {"id": 71, "la": "caput, capitis (n.)", "de": "Kopf, Hauptsache, Hauptstadt"}, {"id": 72, "la": "castra, -orum (n. Pl.)", "de": "Lager"}, {"id": 73, "la": "causa, -ae (f.)", "de": "Ursache, Grund, Prozess"}, {"id": 74, "la": "causā (nachgestellt) + Gen.", "de": "wegen, um ... willen"}, {"id": 75, "la": "censēre, censeo, censui, censum", "de": "schätzen, meinen"}, {"id": 76, "la": "certus, -a, -um", "de": "sicher, gewiss"}, {"id": 77, "la": "certare", "de": "kämpfen, wetteifern"}, {"id": 78, "la": "ceteri, -ae, -a", "de": "die übrigen"}, {"id": 79, "la": "civis, -is (m.)", "de": "Bürger, Mitbürger"}, {"id": 80, "la": "civitas, -atis (f.)", "de": "Bürgerschaft, Staat, Gemeinde, Volksstamm"}, {"id": 81, "la": "clades, -is (f.)", "de": "Niederlage, Verlust"}, {"id": 82, "la": "clamor, -oris (m.)", "de": "Geschrei"}, {"id": 83, "la": "clarus, -a, -um", "de": "hell, klar, berühmt"}, {"id": 84, "la": "claudere, claudo, clausi, clausum", "de": "schließen, absperren"}, {"id": 85, "la": "colere, colo, colui, cultum", "de": "bebauen, pflegen, verehren"}, {"id": 86, "la": "conari", "de": "versuchen"}, {"id": 87, "la": "consulere, consulo, consului, consultum", "de": "beratschlagen, + Dat. sorgen für, + Akk. um Rat fragen"}, {"id": 88, "la": "consul, consulis (m.)", "de": "Konsul"}, {"id": 89, "la": "consilium, -i (n.)", "de": "Rat, Plan, Absicht, Beschluss"}, {"id": 90, "la": "contentus, a, um", "de": "zufrieden"}, {"id": 91, "la": "copia, -ae (f.)", "de": "Vorrat, Menge"}, {"id": 92, "la": "copiae, -arum (f. Pl.)", "de": "Truppen, Streitkräfte"}, {"id": 93, "la": "corpus, -oris (n.)", "de": "Körper"}, {"id": 94, "la": "crescere, cresco, crevi, cretum", "de": "wachsen, zunehmen"}, {"id": 95, "la": "cum (Präposition + Abl.)", "de": "mit"}, {"id": 96, "la": "cum (Konjunktion + Konj.)", "de": "1. als, nachdem (cum historicum) 2. weil, da (cum causale) 3. obgleich, obwohl (cum concessivum) 4. während (indessen) (cum adversativum)"}, {"id": 97, "la": "cum (Konjunktion + Ind).", "de": "1. (damals) als; (dann), wenn (cum temporale, rein zeitliches cum) 2. (immer) wenn (cum iterativum, Wiederholung) 3. dadurch, daß; indem (cum modale) 4. als plötzlich (cum inversivum)"}, {"id": 98, "la": "cunctari", "de": "zögern"}, {"id": 99, "la": "cupere, cupio, cupivi, cupitum", "de": "wünschen, begehren"}, {"id": 100, "la": "cupiditas, -atis (f.)", "de": "das Verlangen, die Leidenschaft"}, {"id": 101, "la": "cura, -ae (f.)", "de": "Sorge, Sorgfalt"}, {"id": 102, "la": "curare + Akk.", "de": "sich kümmern um, pflegen"}, {"id": 103, "la": "cursus, -ūs (m.)", "de": "Lauf, Kurs, Bahn"}, {"id": 104, "la": "dare, do, dedi, datum", "de": "geben"}, {"id": 105, "la": "condere, condo, condidi, conditum", "de": "gründen, verwahren, bestatten"}, {"id": 106, "la": "credere, credo, credidi, creditum", "de": "glauben, anvertrauen"}, {"id": 107, "la": "perdere, perdo, perdidi, perditum", "de": "verderben, zugrunde richten; verlieren"}, {"id": 108, "la": "reddere, reddo, reddidi, redditum", "de": "zurückgeben; machen zu ..."}, {"id": 109, "la": "tradere, trado, tradidi, traditum", "de": "(jem. etwas) übergeben, überliefern"}, {"id": 110, "la": "de (Präposition + Abl.)", "de": "von, von ... herab (örtlich), von/über (etwas reden)"}, {"id": 111, "la": "decernere, decerno, decrevi, decretum", "de": "entscheiden, beschließen"}, {"id": 112, "la": "defendere, defendo, defendi, defensum", "de": "verteidigen, abwehren"}, {"id": 113, "la": "deus, -i (m.) (Nom. Pl. di)", "de": "Gott"}, {"id": 114, "la": "dicere, dico, dixi, dictum", "de": "sagen, sprechen"}, {"id": 115, "la": "condicio, -onis (f.)", "de": "Lage, Bedingung"}, {"id": 116, "la": "dignus, -a, -um (+ Abl.)", "de": "würdig (+ Gen.)"}, {"id": 117, "la": "discere, disco, didici", "de": "lernen"}, {"id": 118, "la": "diu", "de": "lange"}, {"id": 119, "la": "divitiae, -arum (f. Pl)", "de": "Reichtum, Schätze"}, {"id": 120, "la": "docēre, doceo, docui, doctum", "de": "lehren, unterrichten"}, {"id": 121, "la": "dolēre, doleo, dolui", "de": "Schmerz empfinden, bedauern"}, {"id": 122, "la": "domus, -ūs (f.)", "de": "Haus"}, {"id": 123, "la": "domi militiaeque", "de": "in Krieg und Frieden"}, {"id": 124, "la": "domum", "de": "nach Hause"}, {"id": 125, "la": "domi", "de": "zu Hause"}, {"id": 126, "la": "domo", "de": "von zu Hause, aus dem Haus"}, {"id": 127, "la": "dominus, -i (m.)", "de": "Herr"}, {"id": 128, "la": "dubitare", "de": "zweifeln, + Inf.: zögern"}, {"id": 129, "la": "non dubito, quin + Konj.", "de": "ich zweifle nicht daran, daß"}, {"id": 130, "la": "ducere, duco, duxi, ductum", "de": "führen, halten für"}, {"id": 131, "la": "adducere, adduco, adduxi, adductum", "de": "heranführen, veranlassen"}, {"id": 132, "la": "dux, ducis (m.)", "de": "Anführer, Feldherr"}, {"id": 133, "la": "e / ex (Präposition + Abl.)", "de": "aus, aus ... heraus, seit"}, {"id": 134, "la": "emere, emo, ēmi, emptum", "de": "kaufen"}, {"id": 135, "la": "sumere, sumo, sumpsi, sumptum", "de": "nehmen"}, {"id": 136, "la": "equus, -i (m.)", "de": "Pferd"}, {"id": 137, "la": "eques, equitis (m.)", "de": "Reiter, Ritter"}, {"id": 138, "la": "ergo", "de": "also, folglich"}, {"id": 139, "la": "esse, sum, fui (futurus)", "de": "sein, existieren, es gibt"}, {"id": 140, "la": "viri est", "de": "es ist typisch für einen Mann, es ist Aufgabe eines Mannes"}, {"id": 141, "la": "magni / parvi esse", "de": "viel / wenig wert sein, viel / wenig gelten"}, {"id": 142, "la": "magno / parvo esse", "de": "teuer / billig sein"}, {"id": 143, "la": "magno usui esse", "de": "von großem Nutzen sein"}, {"id": 144, "la": "abesse, absum, afui (afuturus)", "de": "abwesend sein, fehlen"}, {"id": 145, "la": "adesse, adsum, adfui / affui (adfuturus)", "de": "anwesend sein, +Dat. helfen"}, {"id": 146, "la": "posse, possum, potui", "de": "können"}, {"id": 147, "la": "praeesse, praesum, praefui (+Dat.)", "de": "an der Spitze stehen, leiten, lenken"}, {"id": 148, "la": "prodesse, prosum, profui (profuturus)", "de": "nützen"}, {"id": 149, "la": "superesse", "de": "übrig sein, überleben"}, {"id": 150, "la": "et", "de": "und, auch"}, {"id": 151, "la": "et ... et ...", "de": "sowohl ... als auch ..."}, {"id": 152, "la": "exemplum, -i (n.)", "de": "Beispiel, Vorbild"}, {"id": 153, "la": "exercēre, exerceo, exercui", "de": "üben, betreiben, quälen"}, {"id": 154, "la": "exercitus, -ūs (m.)", "de": "Heer"}, {"id": 155, "la": "existimare", "de": "glauben, meinen"}, {"id": 156, "la": "exspectare", "de": "erwarten, warten auf ..."}, {"id": 157, "la": "facere, facio, fēci, factum", "de": "machen, tun"}, {"id": 158, "la": "efficere, efficio, effēci, effectum", "de": "bewirken, durchsetzen"}, {"id": 159, "la": "interficere, interficio, interfēci, interfectum", "de": "töten"}, {"id": 160, "la": "proficisci, proficiscor, profectus sum", "de": "aufbrechen, reisen, marschieren"}, {"id": 161, "la": "factum, -i (n.)", "de": "Tat, Tatsache"}, {"id": 162, "la": "profecto (Avderb)", "de": "tatsächlich, in der Tat"}, {"id": 163, "la": "facinus, -oris (n.)", "de": "Tat, Untat"}, {"id": 164, "la": "facilis, facile (Adverb: facile)", "de": "leicht, mühelos"}, {"id": 165, "la": "difficilis, difficile", "de": "schwierig"}, {"id": 166, "la": "fallere, fallo, fefelli, (deceptum)", "de": "täuschen"}, {"id": 167, "la": "fallit me", "de": "es entgeht mir"}, {"id": 168, "la": "fama, -ae (f.)", "de": "Gerücht, (guter / schlechter) Ruf"}, {"id": 169, "la": "fatum, -i (n.)", "de": "Götterspruch, Schicksal"}, {"id": 170, "la": "fere (nachgestellt)", "de": "ungefähr, fast"}, {"id": 171, "la": "ferre, fero, tuli, latum", "de": "tragen, bringen, ertragen, berichten"}, {"id": 172, "la": "afferre, affero, attuli, allatum", "de": "herbeibringen, melden"}, {"id": 173, "la": "conferre, confero, contuli, collatum", "de": "zusammentragen, vergleichen"}, {"id": 174, "la": "deferre, defero, detuli, delatum", "de": "herabbringen, überbringen, melden"}, {"id": 175, "la": "differre, differo, distuli, dilatum", "de": "aufschieben; im Präsens auch: sich unterscheiden"}, {"id": 176, "la": "perferre, perfero, pertuli, perlatum", "de": "ertragen, hinbringen"}, {"id": 177, "la": "praeferre, praefero, praetuli, praelatum", "de": "vorziehen"}, {"id": 178, "la": "referre, refero, rettuli, relatum", "de": "zurückbringen, berichten"}, {"id": 179, "la": "forte (Adverb)", "de": "zufällig"}, {"id": 180, "la": "fortuna, -ae (f.)", "de": "Schicksal, Glück; im Plural: Vermögen, Güter"}, {"id": 181, "la": "ferrum, -i (n.)", "de": "Eisen, Schwert"}, {"id": 182, "la": "fides, fidei (f.)", "de": "Treue, Glauben, Vertrauen"}, {"id": 183, "la": "foedus, -eris (n.)", "de": "Bündnis, Vertrag"}, {"id": 184, "la": "fieri, fio, factus sum", "de": "werden, geschehen, gemacht werden"}, {"id": 185, "la": "filius, -i (m.)", "de": "Sohn"}, {"id": 186, "la": "finis, -is (m.)", "de": "Grenze, Ziel; im Plural auch: Gebiet"}, {"id": 187, "la": "finitimus, -a, -um", "de": "benachbart, angrenzend"}, {"id": 188, "la": "firmus, -a, -um", "de": "fest, stark, zuverlässig"}, {"id": 189, "la": "confirmare", "de": "stärken, versichern"}, {"id": 190, "la": "flumen, -inis (n.)", "de": "Fluss, Strom"}, {"id": 191, "la": "fortis, forte", "de": "tapfer, mutig"}, {"id": 192, "la": "frumentum, -i (n.)", "de": "Getreide"}, {"id": 193, "la": "fugere, fugio, fūgi (+ Akk.)", "de": "fliehen (vor)"}, {"id": 194, "la": "fuga, -ae (f.)", "de": "Flucht"}, {"id": 195, "la": "fungi, fungor, functus sum (+ Abl.)", "de": "verrichten, verwalten"}, {"id": 196, "la": "gaudēre, gaudeo, gavisus sum", "de": "sich freuen"}, {"id": 197, "la": "gens, gentis (f.)", "de": "Stamm, Volk, Geschlecht"}, {"id": 198, "la": "genus, generis (n.)", "de": "Geschlecht, Gattung, Art"}, {"id": 199, "la": "gerere, gero, gessi, gestum", "de": "tragen (Kleidung), verrichten"}, {"id": 200, "la": "bellum gerere", "de": "Krieg führen"}, {"id": 201, "la": "gloria, -ae (f.)", "de": "Ruhm, Ehre"}, {"id": 202, "la": "gratia, -ae (f.)", "de": "Dank, Gunst, Ansehen"}, {"id": 203, "la": "gratus, a, um", "de": "dankbar, willkommen"}, {"id": 204, "la": "gravis, grave", "de": "schwer, ernst"}, {"id": 205, "la": "habēre, habeo, habui, habitum", "de": "haben, halten"}, {"id": 206, "la": "debēre, debeo, debui, debitum", "de": "schulden, müssen, verdanken"}, {"id": 207, "la": "prohibēre, prohibeo, prohibui, prohibitum", "de": "abhalten, (ver)hindern"}, {"id": 208, "la": "haud", "de": "nicht"}, {"id": 209, "la": "hic, haec, hoc", "de": "dieser, diese, dieses"}, {"id": 210, "la": "hīc (Adverb)", "de": "hier"}, {"id": 211, "la": "hinc", "de": "von hier aus"}, {"id": 212, "la": "huc", "de": "hierher"}, {"id": 213, "la": "adhuc", "de": "bis jetzt, noch immer"}, {"id": 214, "la": "homo, hominis (m.)", "de": "Mensch"}, {"id": 215, "la": "nemo (Dat.: nemini, Akk.: neminem)", "de": "niemand"}, {"id": 216, "la": "humanus, -a, -um", "de": "menschlich, gebildet"}, {"id": 217, "la": "honos, honoris (m.)", "de": "Ehre, (Ehren)Amt"}, {"id": 218, "la": "hortari", "de": "ermahnen, auffordern, ermuntern"}, {"id": 219, "la": "hostis, -is (m.)", "de": "Feind"}, {"id": 220, "la": "iacēre, iaceo, iacui", "de": "(am Boden) liegen"}, {"id": 221, "la": "iam", "de": "schon"}, {"id": 222, "la": "etiam", "de": "auch, sogar"}, {"id": 223, "la": "idoneus, -a, -um", "de": "geeignet"}, {"id": 224, "la": "igitur", "de": "daher, also, folglich"}, {"id": 225, "la": "ille, illa, illud", "de": "jener, jene, jenes"}, {"id": 226, "la": "in (Präposition + Akk.; Frage: wohin?)", "de": "in, auf, nach, gegen(über)"}, {"id": 227, "la": "in (Präposition + Abl.; Frage: wo?)", "de": "in, an, auf, bei"}, {"id": 228, "la": "incendere, incendo, incendi, incensum", "de": "anzünden, entflammen"}, {"id": 229, "la": "incitare", "de": "antreiben, reizen"}, {"id": 230, "la": "ingenium, -i (n.)", "de": "Begabung, Anlage, Talent"}, {"id": 231, "la": "ingens, ingentis", "de": "gewaltig, riesig, ungeheuer"}, {"id": 232, "la": "inquit", "de": "sagt(e) er / sie"}, {"id": 233, "la": "inter (Präposition + Akk.)", "de": "zwischen, während"}, {"id": 234, "la": "interea", "de": "inzwischen"}, {"id": 235, "la": "ire, eo, ii, itum", "de": "gehen"}, {"id": 236, "la": "abire", "de": "weggehen"}, {"id": 237, "la": "adire", "de": "herangehen, angreifen, sich an jn. wenden"}, {"id": 238, "la": "exire", "de": "hinausgehen"}, {"id": 239, "la": "inire", "de": "anfangen, hineingehen"}, {"id": 240, "la": "initium, -i (n.)", "de": "Anfang"}, {"id": 241, "la": "interire", "de": "untergehen, umkommen"}, {"id": 242, "la": "obire", "de": "auf sich nehmen, begegnen"}, {"id": 243, "la": "mortem obire", "de": "sterben (wörtlich: den Tod auf sich nehmen)"}, {"id": 244, "la": "perire", "de": "zugrunde gehen"}, {"id": 245, "la": "redire", "de": "zurückkehren"}, {"id": 246, "la": "subire", "de": "auf sich nehmen"}, {"id": 247, "la": "iter, itineris (n.)", "de": "Weg, Marsch, Reise"}, {"id": 248, "la": "is, ea, id", "de": "er, sie, es; dieser, diese, dieses"}, {"id": 249, "la": "is, qui", "de": "derjenige, welcher"}, {"id": 250, "la": "adeo", "de": "so sehr"}, {"id": 251, "la": "idem, eadem, idem", "de": "derselbe, dieselbe, dasselbe"}, {"id": 252, "la": "idem qui", "de": "derselbe wie"}, {"id": 253, "la": "ipse, ipsa, ipsum", "de": "selbst, persönlich, gerade"}, {"id": 254, "la": "iste, ista, istud", "de": "dieser (dein), der da (abfällig gemeint)"}, {"id": 255, "la": "ibi", "de": "dort"}, {"id": 256, "la": "inde", "de": "von da, von dort"}, {"id": 257, "la": "deinde", "de": "darauf, dann"}, {"id": 258, "la": "primum ... deinde", "de": "erstens ... zweitens"}, {"id": 259, "la": "ita", "de": "so, auf diese Weise"}, {"id": 260, "la": "itaque", "de": "deshalb"}, {"id": 261, "la": "item", "de": "ebenso"}, {"id": 262, "la": "iubēre, iubeo, iussi, iussum", "de": "beauftragen, befehlen"}, {"id": 263, "la": "iussu", "de": "auf Befehl"}, {"id": 264, "la": "iungere, iungo, iunxi, iunctum", "de": "verbinden, vereinigen"}, {"id": 265, "la": "coniunx, coniugis (m. / f.)", "de": "Gatte / Gattin, Ehemann / Ehefrau"}, {"id": 266, "la": "ius, iuris (n.)", "de": "Recht"}, {"id": 267, "la": "iniuria, -ae (f.)", "de": "Unrecht, Ungerechtigkeit"}, {"id": 268, "la": "iustus, -a, -um", "de": "gerecht"}, {"id": 269, "la": "iudicare", "de": "urteilen, beurteilen, halten für"}, {"id": 270, "la": "labor, -oris (m.)", "de": "Mühe, Anstrengung, Arbeit"}, {"id": 271, "la": "laetus, -a, -um", "de": "fröhlich, munter"}, {"id": 272, "la": "legatus, -i (m.)", "de": "1. Gesandter, 2. Legat (Unterfeldherr)"}, {"id": 273, "la": "legere, lego, lēgi, lectum", "de": "lesen, sammeln"}, {"id": 274, "la": "intellegere, intellego, intellexi, intellectum", "de": "erkennen, einsehen, verstehen"}, {"id": 275, "la": "neglegere, neglego, neglexi, neglectum", "de": "vernachlässigen, übersehen"}, {"id": 276, "la": "legio, -onis (f.)", "de": "Legion"}, {"id": 277, "la": "lex, legis (f.)", "de": "Gesetz"}, {"id": 278, "la": "liber, libera, liberum", "de": "frei"}, {"id": 279, "la": "liberi, -orum (m.)", "de": "die Kinder"}, {"id": 280, "la": "libertas, -atis (f.)", "de": "Freiheit"}, {"id": 281, "la": "libido, -inis (f.)", "de": "Lust, Verlangen, Willkür"}, {"id": 282, "la": "licet, licuit (+ Dat.)", "de": "es ist erlaubt"}, {"id": 283, "la": "litus, -oris (n.)", "de": "Küste, Strand"}, {"id": 284, "la": "locus, -i (m.)", "de": "Ort, Stelle, Platz, Rang"}, {"id": 285, "la": "collocare", "de": "aufstellen, unterbringen"}, {"id": 286, "la": "longus, -a, -um", "de": "lang"}, {"id": 287, "la": "longē (Adverb)", "de": "bei weitem"}, {"id": 288, "la": "lux, lucis (f.)", "de": "Licht"}, {"id": 289, "la": "magistratus, -ūs (m.)", "de": "Amt, Beamter"}, {"id": 290, "la": "magnus, -a, -um (Kompar.: maior, maius, Superl.: maximus, -a, -um)", "de": "groß"}, {"id": 291, "la": "maiores, maiorum (m. Pl.)", "de": "die Vorfahren"}, {"id": 292, "la": "maxime (Adverb)", "de": "am meisten, besonders"}, {"id": 293, "la": "magis (Adverb)", "de": "mehr (in höherem Grade)"}, {"id": 294, "la": "magnitudo, -inis (f.)", "de": "Größe"}, {"id": 295, "la": "malus, -a, -um (Kompar.: peior, peius, Superl.: pessimus, -a, -um)", "de": "schlecht, böse, schlimm"}, {"id": 296, "la": "malum, -i (n.)", "de": "das Übel, das Leid"}, {"id": 297, "la": "mandare", "de": "übergeben, anvertrauen"}, {"id": 298, "la": "manēre, maneo, mansi (mansurus)", "de": "bleiben"}, {"id": 299, "la": "manus, -us (f.)", "de": "Hand, Schar"}, {"id": 300, "la": "mare, maris (n.) (Ablativ: mari)", "de": "Meer"}, {"id": 301, "la": "medius, -a, -um", "de": "der mittlere, mitten"}, {"id": 302, "la": "meminisse, memini (+ Gen.)", "de": "sich erinnern"}, {"id": 303, "la": "memoria, -ae (f.)", "de": "Gedächtnis, Erinnerung"}, {"id": 304, "la": "mens, mentis (f.)", "de": "Geist, Verstand, Gedanke, Absicht"}, {"id": 305, "la": "metus, -ūs (m.)", "de": "Furcht"}, {"id": 306, "la": "meus, -a, -um", "de": "mein"}, {"id": 307, "la": "miles, militis (m.)", "de": "Soldat"}, {"id": 308, "la": "mirari (+ Akk.)", "de": "sich wundern (über), bewundern"}, {"id": 309, "la": "miscēre, misceo, miscui, mixtum", "de": "mischen, verwirren"}, {"id": 310, "la": "miser, misera, miserum", "de": "elend, unglücklich, arm"}, {"id": 311, "la": "mittere, mitto, misi, missum", "de": "schicken"}, {"id": 312, "la": "amittere, amitto, amisi, amissum", "de": "verlieren"}, {"id": 313, "la": "committere, committo, commisi, commissum", "de": "anvertrauen, zustande bringen, (Tat) begehen"}, {"id": 314, "la": "proelium committere", "de": "eine Schlacht beginnnen"}, {"id": 315, "la": "dimittere, dimitto, dimisi, dimissum", "de": "wegschicken, entlassen"}, {"id": 316, "la": "permittere, permitto, permisi, permissum", "de": "erlauben, überlassen"}, {"id": 317, "la": "modus, -i (m.)", "de": "Maß, Art, Weise"}, {"id": 318, "la": "modo (Adverb)", "de": "eben gerade, nur"}, {"id": 319, "la": "non modo, sed etiam", "de": "nicht nur, sondern auch"}, {"id": 320, "la": "quem ad modum (oder: quemadmodum)", "de": "wie, auf welche Weise"}, {"id": 321, "la": "moenia, -ium (n. Pl.)", "de": "Stadtmauer"}, {"id": 322, "la": "monēre, moneo, monui, monitum", "de": "(er)mahnen, warnen"}, {"id": 323, "la": "mons, montis (m.)", "de": "Berg"}, {"id": 324, "la": "(de)monstrare", "de": "zeigen"}, {"id": 325, "la": "mori, morior, mortuus sum (moriturus)", "de": "sterben"}, {"id": 326, "la": "mors, mortis (f.)", "de": "Tod"}, {"id": 327, "la": "mos, moris (m.)", "de": "Sitte, Brauch; im Plural: Charakter"}, {"id": 328, "la": "movēre, moveo, movi, motum", "de": "bewegen, veranlassen"}, {"id": 329, "la": "mox", "de": "bald"}, {"id": 330, "la": "multi, -ae, -a", "de": "viele"}, {"id": 331, "la": "multitudo, -inis (f.)", "de": "Menge, Vielzahl"}, {"id": 332, "la": "munus, muneris (n.)", "de": "Amt, Aufgabe, Geschenk"}, {"id": 333, "la": "nam", "de": "denn, nämlich"}, {"id": 334, "la": "enim", "de": "denn, nämlich"}, {"id": 335, "la": "nasci, nascor, natus sum", "de": "geboren werden, entstehen"}, {"id": 336, "la": "natus", "de": "geboren; als Substantiv: Sohn"}, {"id": 337, "la": "navis, -is (f.)", "de": "Schiff"}, {"id": 338, "la": "-ne (angehängt an das betonte Wort einer Frage)", "de": "in der direkten Frage: unübersetzt, entspricht dem deutschen Fragezeichen; in der indirekten Frage: ob"}, {"id": 339, "la": "ne + Konj.", "de": "dass nicht, damit nicht; nach Verben des Fürchtens und Hinderns: dass"}, {"id": 340, "la": "ne ... quidem", "de": "nicht einmal ..."}, {"id": 341, "la": "nec / neque", "de": "und nicht, auch nicht"}, {"id": 342, "la": "neque vero", "de": "aber nicht"}, {"id": 343, "la": "neque enim", "de": "denn nicht"}, {"id": 344, "la": "nec ... nec / neque ... neque", "de": "weder ... noch"}, {"id": 345, "la": "necare", "de": "töten"}, {"id": 346, "la": "necesse est", "de": "es ist notwendig"}, {"id": 347, "la": "nihil / nil", "de": "nichts"}, {"id": 348, "la": "nimis", "de": "allzu sehr"}, {"id": 349, "la": "nocēre, noceo, nocui, nocitum", "de": "schaden"}, {"id": 350, "la": "nomen, nominis (n.)", "de": "Name, Begriff"}, {"id": 351, "la": "non", "de": "nicht"}, {"id": 352, "la": "nondum", "de": "noch nicht"}, {"id": 353, "la": "non iam", "de": "nicht mehr"}, {"id": 354, "la": "nonne?", "de": "nicht? (in der Frage, erwartete Antwort: „ja“)"}, {"id": 355, "la": "nos", "de": "wir / uns (Nominativ / Akkusativ)"}, {"id": 356, "la": "noster, nostra, nostrum", "de": "unser"}, {"id": 357, "la": "novisse, novi", "de": "kennen, wissen"}, {"id": 358, "la": "cognoscere, cognosco, cognovi, cognitum", "de": "erkennen, bemerken, kennen lernen"}, {"id": 359, "la": "nobilis, nobile", "de": "berühmt, vornehm"}, {"id": 360, "la": "notus, -a, -um", "de": "bekannt"}, {"id": 361, "la": "novus, -a, -um", "de": "neu"}, {"id": 362, "la": "nox, noctis (f.)", "de": "Nacht"}, {"id": 363, "la": "num?", "de": "In der direkten Frage: etwa? (erwartete Antwort: \"nein\"); in der indirekten Frage: ob"}, {"id": 364, "la": "numerus, -i (m.)", "de": "Zahl, Anzahl"}, {"id": 365, "la": "nunc", "de": "nun, jetzt"}, {"id": 366, "la": "oblivisci, obliviscor, oblitus sum (+ Gen.)", "de": "vergessen"}, {"id": 367, "la": "oculus, -i (m.)", "de": "Auge"}, {"id": 368, "la": "odisse, odi", "de": "hassen"}, {"id": 369, "la": "odium, -i (n.)", "de": "Hass"}, {"id": 370, "la": "omnis, omne", "de": "alle, jeder, ganz"}, {"id": 371, "la": "opera, -ae (f.)", "de": "Mühe"}, {"id": 372, "la": "opes, opum (f.)", "de": "die Mittel: Reichtum, Macht, Einfluss"}, {"id": 373, "la": "oportet, oportuit", "de": "es ist nötig, es gehört sich"}, {"id": 374, "la": "opus, operis (n.)", "de": "Werk, Arbeit"}, {"id": 375, "la": "ora, ae (f.)", "de": "Küste"}, {"id": 376, "la": "orare", "de": "bitten, beten"}, {"id": 377, "la": "oratio, -onis (f.)", "de": "Rede"}, {"id": 378, "la": "orationem habēre", "de": "eine Rede halten"}, {"id": 379, "la": "ordo, ordinis (m.)", "de": "Reihe, Stand, Ordnung"}, {"id": 380, "la": "oriri, orior, ortus sum", "de": "entstehen, aufgehen (Sonne), abstammen"}, {"id": 381, "la": "ornare", "de": "schmücken, ausstatten"}, {"id": 382, "la": "ōs, oris (n.)", "de": "Gesicht, Mund"}, {"id": 383, "la": "otium, -i (n.)", "de": "Muße, freie Zeit"}, {"id": 384, "la": "negotium, -i (n.)", "de": "Geschäft, Aufgabe"}, {"id": 385, "la": "parare", "de": "(vor)bereiten, sich bereit machen, vorhaben"}, {"id": 386, "la": "paratus, a, um (ad)", "de": "bereit (zu), vorbereitet"}, {"id": 387, "la": "imperare", "de": "befehlen, herrschen"}, {"id": 388, "la": "imperium, -i (n.)", "de": "Befehl, Herrschaft, Reich"}, {"id": 389, "la": "parēre, pareo, parui", "de": "gehorchen"}, {"id": 390, "la": "pars, partis (f.)", "de": "Teil, Seite; im Plural: Partei"}, {"id": 391, "la": "parum", "de": "zu wenig"}, {"id": 392, "la": "parvus, -a, -um", "de": "klein, gering"}, {"id": 393, "la": "pater, patris, m", "de": "Vater"}, {"id": 394, "la": "Plural patres", "de": "die Senatoren"}, {"id": 395, "la": "patēre, pateo, patui", "de": "offenstehen, sich erstrecken"}, {"id": 396, "la": "pati, patior, passus sum", "de": "dulden, erleiden, zulassen"}, {"id": 397, "la": "patria, -ae (f.)", "de": "Heimat, Vaterland"}, {"id": 398, "la": "pauci, -ae, -a", "de": "wenige"}, {"id": 399, "la": "pecunia, -ae (f.)", "de": "Geld"}, {"id": 400, "la": "pellere, pello, pepuli, pulsum", "de": "treiben, stoßen, schlagen, vertreiben"}, {"id": 401, "la": "appellare", "de": "anreden, (be)nennen"}, {"id": 402, "la": "per (Präposition + Akk.)", "de": "durch"}, {"id": 403, "la": "periculum, -i (n.)", "de": "Gefahr"}, {"id": 404, "la": "petere, peto, petivi, petitum", "de": "zu erreichen suchen, streben nach ..., verlangen, bitten, angreifen"}, {"id": 405, "la": "impetus, -ūs (m.)", "de": "Ansturm, Angriff, Antrieb"}, {"id": 406, "la": "placēre, placeo, placui, placitum", "de": "gefallen"}, {"id": 407, "la": "plebs, plebis (f.)", "de": "(das niedere) Volk"}, {"id": 408, "la": "plenus, a, um (+ Gen.)", "de": "voll (von ...)"}, {"id": 409, "la": "plerique, pleraeque, pleraque", "de": "die meisten"}, {"id": 410, "la": "complures, complura", "de": "mehrere"}, {"id": 411, "la": "poena, -ae (f.)", "de": "Strafe"}, {"id": 412, "la": "polliceri, polliceor, pollicitus sum", "de": "(jem. etwas) versprechen"}, {"id": 413, "la": "ponere, pono, posui, positum", "de": "setzen, stellen, legen"}, {"id": 414, "la": "populus, -i (m.)", "de": "Volk"}, {"id": 415, "la": "publicus, -a, -um", "de": "öffentlich, staatlich"}, {"id": 416, "la": "post (Präposition + Akk.)", "de": "nach, hinter"}, {"id": 417, "la": "post / postea (Adverb)", "de": "danach, später"}, {"id": 418, "la": "postquam (Konjunktion +Ind. Perf.)", "de": "nachdem (Nebensatzeinleitung)"}, {"id": 419, "la": "postremo", "de": "zuletzt"}, {"id": 420, "la": "potestas, -atis (f.)", "de": "Macht, Amtsgewalt, Möglichkeit"}, {"id": 421, "la": "praemium, -i (n.)", "de": "Belohnung, Preis"}, {"id": 422, "la": "praesidium, -i (n.)", "de": "Schutz, Posten, Besatzung"}, {"id": 423, "la": "praeterea", "de": "außerdem"}, {"id": 424, "la": "premere, premo, pressi, pressum", "de": "drücken, (be)drängen"}, {"id": 425, "la": "primus, a, um", "de": "der erste"}, {"id": 426, "la": "primum", "de": "zuerst, zum erstenmal, erstens"}, {"id": 427, "la": "princeps, principis (m.)", "de": "der erste, der vornehmste; der führende Mann, Fürst"}, {"id": 428, "la": "pro (Präposition + Abl).", "de": "vor, für, an Stelle von, im Verhältnis zu"}, {"id": 429, "la": "probare", "de": "billigen, prüfen"}, {"id": 430, "la": "proelium, -i (n.)", "de": "Schlacht, Gefecht"}, {"id": 431, "la": "profecto (Adv.)", "de": "in der Tat, tatsächlich"}, {"id": 432, "la": "prope 1. (Präposition + Akk.); 2. (Adverb)", "de": "1. nahe bei ...; 2. beinahe"}, {"id": 433, "la": "propter (Präposition + Akk.)", "de": "wegen"}, {"id": 434, "la": "provincia, -ae (f.)", "de": "Provinz, Amtsbereich"}, {"id": 435, "la": "proximus, -a, -um", "de": "der nächste, der letzte"}, {"id": 436, "la": "pugnare", "de": "kämpfen"}, {"id": 437, "la": "putare", "de": "glauben, meinen, halten für"}, {"id": 438, "la": "te amicum puto", "de": "ich halte dich für meinen Freund"}, {"id": 439, "la": "quaerere, quaero, quaesivi, quaesitum", "de": "suchen, fragen"}, {"id": 440, "la": "quaerere aliquid ex / ab aliquo", "de": "jem. nach etwas fragen"}, {"id": 441, "la": "quam", "de": "1. wie (bei Adjektiven und in der Verbindung tam ... quam = so ... wie ) 2. nach einem Komparativ: als 3. mit einem Superlativ: möglichst"}, {"id": 442, "la": "maior quam ...", "de": "größer als ..."}, {"id": 443, "la": "quam longissimus", "de": "möglichst lang"}, {"id": 444, "la": "numquam", "de": "niemals"}, {"id": 445, "la": "quantus, -a, -um?", "de": "wie groß?"}, {"id": 446, "la": "qui, quae, quod", "de": "1. der; welcher (Relativpronomen) 2. welcher? (Intrerrogativpronomen) 3. nach si, nisi, ne, num: irgendein"}, {"id": 447, "la": "quidam, quaedam, quoddam", "de": "ein gewisser, Pl.: manche"}, {"id": 448, "la": "quis? / quid?", "de": "wer? was?"}, {"id": 449, "la": "quisquam, quicquam", "de": "irgendjemand, irgendetwas"}, {"id": 450, "la": "quisque", "de": "jeder"}, {"id": 451, "la": "unusquisque", "de": "jeder einzelne"}, {"id": 452, "la": "quisquis, quidquid", "de": "wer/was auch immer; jeder, der; alles was"}, {"id": 453, "la": "quidem", "de": "wenigstens, allerdings, zwar"}, {"id": 454, "la": "quod (Konjunktion)", "de": "weil; dass"}, {"id": 455, "la": "quoque (nachgestellt)", "de": "auch"}, {"id": 456, "la": "ratio, -onis (f.)", "de": "Berechnung, Rechenschaft, Überlegung, Art und Weise, Vernunft, Gesetzmäßigkeit"}, {"id": 457, "la": "relinquere, relinquo, reliqui, relictum", "de": "zurücklassen, verlassen"}, {"id": 458, "la": "reliquus, -a, -um", "de": "übrig, restlich"}, {"id": 459, "la": "res, rei (f.)", "de": "Sache, Ding, Tat, Angelegenheit"}, {"id": 460, "la": "res publica, rei publicae (f.)", "de": "Staat, Politik"}, {"id": 461, "la": "rex, regis (m.)", "de": "König"}, {"id": 462, "la": "regnum, -i (n.)", "de": "Königreich, Königsherrschaft"}, {"id": 463, "la": "saepe", "de": "oft"}, {"id": 464, "la": "salus, salutis (f.)", "de": "Rettung, Wohlergehen, Gesundheit"}, {"id": 465, "la": "sapiens, Gen. sapientis", "de": "vernünftig, weise"}, {"id": 466, "la": "satis", "de": "genug"}, {"id": 467, "la": "scelus, sceleris (n.)", "de": "Verbrechen"}, {"id": 468, "la": "scribere, scribo, scripsi, scriptum", "de": "schreiben"}, {"id": 469, "la": "sed", "de": "aber, sondern"}, {"id": 470, "la": "seditio, -onis (f.)", "de": "Aufstand, Aufruhr"}, {"id": 471, "la": "semper", "de": "immer"}, {"id": 472, "la": "senatus, ūs (m.)", "de": "Senat"}, {"id": 473, "la": "sentire, sentio, sensi, sensum", "de": "fühlen, meinen, merken"}, {"id": 474, "la": "sequi, sequor, secutus sum (+ Akk.)", "de": "folgen, begleiten"}, {"id": 475, "la": "socius, -i (m.)", "de": "Bundesgenosse, Gefährte"}, {"id": 476, "la": "sermo, -onis (m.)", "de": "Sprache, Rede, Gespräch"}, {"id": 477, "la": "servus, -i (m.)", "de": "Sklave"}, {"id": 478, "la": "si", "de": "wenn, falls"}, {"id": 479, "la": "nisi", "de": "wenn nicht"}, {"id": 480, "la": "quasi", "de": "wie, gleichwie, gleichsam, als ob"}, {"id": 481, "la": "sic", "de": "so, auf diese Weise"}, {"id": 482, "la": "signum, -i (n.)", "de": "Zeichen, Feldzeichen"}, {"id": 483, "la": "simul", "de": "gleichzeitig, zugleich"}, {"id": 484, "la": "sine (Präposition + Abl.)", "de": "ohne"}, {"id": 485, "la": "socius, i, m", "de": "der Verbündete, Gefährte; Adjektiv: verbündet"}, {"id": 486, "la": "sol, solis (m.)", "de": "Sonne"}, {"id": 487, "la": "solēre, soleo, solitus sum", "de": "gewohnt sein, pflegen"}, {"id": 488, "la": "solus, -a, -um", "de": "allein, einzig"}, {"id": 489, "la": "non solum ..., sed etiam ...", "de": "nicht nur ..., sondern auch ..."}, {"id": 490, "la": "solvere, solvo, solvi, solutum", "de": "lösen, befreien, bezahlen"}, {"id": 491, "la": "soror, sororis (f.)", "de": "Schwester"}, {"id": 492, "la": "sperare", "de": "hoffen"}, {"id": 493, "la": "spes, spei (f.)", "de": "Hoffnung"}, {"id": 494, "la": "stare, sto, steti, statum", "de": "stehen"}, {"id": 495, "la": "statim", "de": "sofort"}, {"id": 496, "la": "constituere, constituo, constitui, constitutum", "de": "aufstellen, festsetzen"}, {"id": 497, "la": "studium, -i (n.)", "de": "Eifer, Vorliebe, Bemühung, wiss.Beschäftigung"}, {"id": 498, "la": "sub (Präposition+ Akk.)", "de": "unter (Frage: „wohin?“), unmittelbar vor / nach"}, {"id": 499, "la": "sub (Präposition+ Abl.)", "de": "unter, unterhalb (Frage „wo?“)"}, {"id": 500, "la": "subito", "de": "plötzlich"}, {"id": 501, "la": "superior, superius", "de": "der obere, der höhere; der frühere; überlegen"}, {"id": 502, "la": "summus, -a, -um", "de": "der oberste, höchste"}, {"id": 503, "la": "superare", "de": "übertreffen, überwinden"}, {"id": 504, "la": "supplicium, -i (n.)", "de": "Strafe, Todesstrafe"}, {"id": 505, "la": "talis, tale", "de": "ein solcher, derartig"}, {"id": 506, "la": "tam", "de": "so, in solchem Grade"}, {"id": 507, "la": "tamen", "de": "dennoch"}, {"id": 508, "la": "tantus, -a, -um", "de": "so groß"}, {"id": 509, "la": "tantus … quantus", "de": "so groß wie"}, {"id": 510, "la": "tantum", "de": "nur"}, {"id": 511, "la": "tegere, tego, texi, tectum", "de": "(be)decken, beschützen"}, {"id": 512, "la": "templum, -i (n.)", "de": "Tempel"}, {"id": 513, "la": "tempus, -oris (n.)", "de": "Zeit, Pl.: Lage, Umstände"}, {"id": 514, "la": "tempestas, -atis (f.)", "de": "Sturm, Unwetter"}, {"id": 515, "la": "tenēre, teneo, tenui, tentum", "de": "halten, festhalten"}, {"id": 516, "la": "terra, -ae (f.)", "de": "Land, Erde"}, {"id": 517, "la": "timēre, timeo, timui", "de": "fürchten"}, {"id": 518, "la": "timor, -oris (m.)", "de": "Angst, Furcht"}, {"id": 519, "la": "tollere, tollo, sustuli, sublatum", "de": "emporheben, aufheben, beseitigen"}, {"id": 520, "la": "totus, -a, -um Gen.: totius, Dat.: toti", "de": "ganz"}, {"id": 521, "la": "tuus, -a, -um", "de": "dein"}, {"id": 522, "la": "tum / tunc", "de": "da, dann, darauf, damals"}, {"id": 523, "la": "tutus, -a, -um", "de": "sicher, geschützt"}, {"id": 524, "la": "ullus, -a, -um", "de": "irgendein"}, {"id": 525, "la": "nullus, -a, -um Gen.: (n)ullius, Dat.: (n)ulli", "de": "kein"}, {"id": 526, "la": "unus, -a, -um Gen.: unius, Dat.: uni", "de": "ein einziger, einzig"}, {"id": 527, "la": "urbs, urbis (f.)", "de": "Stadt (meistens ist Rom gemeint)"}, {"id": 528, "la": "usque ad (+ Akk.)", "de": "bis zu …"}, {"id": 529, "la": "ut", "de": "1. + Ind.: wie (Vergleich); + Ind. Perf. (auch: ut primum) sobald 2. + Konj.: dass, damit, so dass (selten: wenn auch)"}, {"id": 530, "la": "uterque, utraque, utrumque", "de": "jeder von beiden, beide"}, {"id": 531, "la": "uti, utor, usus sum (+ Abl.)", "de": "gebrauchen, benutzen"}, {"id": 532, "la": "valēre, valeo, valui", "de": "gesund sein, stark sein, Einfluß haben"}, {"id": 533, "la": "varius, -a, -um", "de": "verschieden, bunt"}, {"id": 534, "la": "velle, volo, volui", "de": "wollen"}, {"id": 535, "la": "vel", "de": "oder"}, {"id": 536, "la": "venire, venio, veni, ventum", "de": "kommen"}, {"id": 537, "la": "convenire", "de": "zusammenkommen, passen"}, {"id": 538, "la": "pervenire", "de": "gelangen, hinkommen"}, {"id": 539, "la": "verbum, -i (n.)", "de": "Wort"}, {"id": 540, "la": "verus, -a, -um", "de": "wahr, echt"}, {"id": 541, "la": "vero, verum (Konjunktion)", "de": "aber"}, {"id": 542, "la": "vetus, Gen. veteris", "de": "alt"}, {"id": 543, "la": "vidēre, video, vidi, visum", "de": "sehen"}, {"id": 544, "la": "vidēri videor, visus sum", "de": "scheinen (außerdem natürlich: gesehen werden)"}, {"id": 545, "la": "invidia, -ae (f.)", "de": "Neid, Missgunst"}, {"id": 546, "la": "vincere, vinco, vici, victum", "de": "(be)siegen"}, {"id": 547, "la": "vir, viri (m.)", "de": "Mann"}, {"id": 548, "la": "virtūs, -utis (f.)", "de": "Tapferkeit, Tugend, Tüchtigkeit; Pl.: Leistungen"}, {"id": 549, "la": "vis, vim, vi (f.)", "de": "Kraft, Gewalt"}, {"id": 550, "la": "magna vis auri", "de": "eine große Menge Gold"}, {"id": 551, "la": "vires, virium (f. Pl.)", "de": "Streitkräfte, Truppen"}, {"id": 552, "la": "vita, -ae (f.)", "de": "Leben"}, {"id": 553, "la": "vivere, vivo, vixi (victurus)", "de": "leben"}, {"id": 554, "la": "vivus, -a, -um", "de": "lebend, zu Lebzeiten"}, {"id": 555, "la": "vix", "de": "mit Mühe, kaum"}, {"id": 556, "la": "volvere, volvo, volvi, volutum", "de": "wälzen, rollen, erwägen"}, {"id": 557, "la": "vos", "de": "ihr / euch (Nominativ oder Akkusativ)"}, {"id": 558, "la": "vester, vestra, vestrum", "de": "euer"}, {"id": 559, "la": "quis vestrum?", "de": "wer von euch?"}, {"id": 560, "la": "vestrum est", "de": "es ist eure Aufgabe"}, {"id": 561, "la": "votum, -i (n.)", "de": "Gelübde, Wunsch"}, {"id": 562, "la": "vox, vocis (f.)", "de": "Stimme, Laut, Wort"}, {"id": 563, "la": "vocare", "de": "rufen, nennen"}, {"id": 564, "la": "vulgus, i (n.)", "de": "Volk, (breite) Masse, Pöbel"}, {"id": 565, "la": "vulgo (Adverb)", "de": "allgemein, massenhaft"}, {"id": 566, "la": "vulnus, vulneris (n.)", "de": "Wunde"}, {"id": 567, "la": "vulnerare", "de": "verletzen, kränken"}, {"id": 568, "la": "vultus, ūs (m.)", "de": "Gesichtsausdruck, Miene"}];
+
+/* ── constants ──────────────────────────────────────────────────────────── */
+const TOTAL         = VOCAB.length;
+const SESSION_SIZE  = 5;
+const MASTERY_AT    = 4;   // score threshold for "mastered"
+const STORAGE_KEY   = 'audrey-latin-v1';
+
+/* ── persistent state ───────────────────────────────────────────────────── */
+let cards    = {};   // { [id]: { score:0, lastSeen:0 } }
+let reversed = false;
+
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    cards    = s.cards    || {};
+    reversed = s.reversed || false;
+  } catch (_) {}
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, reversed })); } catch (_) {}
+}
+
+function cardOf(id) {
+  return cards[id] || (cards[id] = { score: 0, lastSeen: 0 });
+}
+
+/* ── session state ───────────────────────────────────────────────────────── */
+let ses = null;  // { queue, index, flipped, ok, alm, bad, missed }
+
+/* ── session selection ───────────────────────────────────────────────────── */
+function buildSession() {
+  const now = Date.now();
+  const scored = VOCAB.map(w => {
+    const c  = cardOf(w.id);
+    const hrs = c.lastSeen ? (now - c.lastSeen) / 3_600_000 : 99_999;
+    return { w, pri: (MASTERY_AT - Math.min(c.score, MASTERY_AT)) * 10_000 + Math.min(hrs, 9_999) };
+  });
+  scored.sort((a, b) => b.pri - a.pri);
+  const queue = scored.slice(0, SESSION_SIZE).map(x => x.w);
+  // Shuffle so presentation order is random within each session
+  for (let i = queue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [queue[i], queue[j]] = [queue[j], queue[i]];
+  }
+  return queue;
+}
+
+/* ── screen switching ────────────────────────────────────────────────────── */
+let currentScreen = 'screen-home';
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  currentScreen = id;
+}
+
+/* ── HOME ─────────────────────────────────────────────────────────────────── */
+function renderHome() {
+  let unseen = 0, learning = 0, mastered = 0;
+  VOCAB.forEach(w => {
+    const s = cardOf(w.id).score;
+    if      (s >= MASTERY_AT) mastered++;
+    else if (s > 0)           learning++;
+    else                      unseen++;
+  });
+
+  document.getElementById('h-mastery').innerHTML =
+    `${mastered} <span>/ ${TOTAL} gelernt</span>`;
+
+  const bar = document.getElementById('h-bar');
+  const segs = [
+    { pct: unseen  / TOTAL * 100, color: '#e2e8f0' },
+    { pct: learning/ TOTAL * 100, color: '#fbbf24' },
+    { pct: mastered/ TOTAL * 100, color: '#4ade80' },
+  ];
+  bar.innerHTML = segs.map(s =>
+    `<div style="width:${s.pct}%;background:${s.color}"></div>`
+  ).join('');
+
+  document.getElementById('toggle-dir').checked = reversed;
+  document.getElementById('h-dir-label').textContent =
+    reversed ? 'Deutsch → Latein' : 'Latein → Deutsch';
+}
+
+/* ── CARD ─────────────────────────────────────────────────────────────────── */
+function startSession() {
+  ses = { queue: buildSession(), index: 0, flipped: false,
+          ok: 0, alm: 0, bad: 0, missed: [] };
+  showScreen('screen-card');
+  renderCard();
+}
+
+function renderCard() {
+  const w  = ses.queue[ses.index];
+  const n  = ses.queue.length;
+
+  document.getElementById('c-fill').style.width = `${ses.index / n * 100}%`;
+  document.getElementById('c-counter').textContent = `${ses.index + 1} / ${n}`;
+
+  const front = reversed ? w.de : w.la;
+  const back  = reversed ? w.la : w.de;
+
+  document.getElementById('front-pill').textContent = reversed ? 'Deutsch' : 'Latein';
+  document.getElementById('back-pill').textContent  = reversed ? 'Latein'  : 'Deutsch';
+  document.getElementById('front-text').textContent = front;
+  document.getElementById('back-text').textContent  = back;
+
+  const wrap = document.getElementById('card-wrap');
+  wrap.classList.remove('flipped');
+  ses.flipped = false;
+
+  document.getElementById('rating-row').classList.remove('visible');
+}
+
+function flipCard() {
+  if (ses.flipped) return;
+  ses.flipped = true;
+  document.getElementById('card-wrap').classList.add('flipped');
+  document.getElementById('rating-row').classList.add('visible');
+}
+
+function rate(r) {
+  if (!ses || !ses.flipped) return;
+  const w = ses.queue[ses.index];
+  const c = cardOf(w.id);
+
+  if      (r === 2) { c.score = Math.min(c.score + 1, 5); ses.ok++;  }
+  else if (r === 1) {                                       ses.alm++; }
+  else              { c.score = Math.max(c.score - 1, 0); ses.bad++;
+                      ses.missed.push(w); }
+  c.lastSeen = Date.now();
+  saveState();
+
+  ses.index++;
+  if (ses.index >= ses.queue.length) showSummary();
+  else renderCard();
+}
+
+/* ── SUMMARY ─────────────────────────────────────────────────────────────── */
+function showSummary() {
+  const mastered = VOCAB.filter(w => cardOf(w.id).score >= MASTERY_AT).length;
+  const pct      = Math.round(ses.ok / ses.queue.length * 100);
+
+  document.getElementById('sum-sub').textContent   = `${pct}% richtig in dieser Runde`;
+  document.getElementById('s-ok').textContent      = ses.ok;
+  document.getElementById('s-alm').textContent     = ses.alm;
+  document.getElementById('s-bad').textContent     = ses.bad;
+  document.getElementById('s-mastery').innerHTML   =
+    `Insgesamt gelernt: <strong>${mastered} / ${TOTAL}</strong>`;
+
+  const box   = document.getElementById('missed-box');
+  const items = document.getElementById('missed-items');
+  if (ses.missed.length > 0) {
+    items.innerHTML = ses.missed.map(w =>
+      `<div class="missed-item">
+        <span class="m-la">${w.la}</span>
+        <span class="m-de">${w.de}</span>
+       </div>`
+    ).join('');
+    box.style.display = '';
+  } else {
+    box.style.display = 'none';
+  }
+
+  showScreen('screen-summary');
+}
+
+/* ── events ──────────────────────────────────────────────────────────────── */
+document.getElementById('btn-start').addEventListener('click', startSession);
+document.getElementById('btn-again').addEventListener('click', startSession);
+document.getElementById('btn-home').addEventListener('click', () => {
+  renderHome(); showScreen('screen-home');
+});
+document.getElementById('btn-quit').addEventListener('click', () => {
+  if (confirm('Übung abbrechen?')) { renderHome(); showScreen('screen-home'); }
+});
+document.getElementById('toggle-dir').addEventListener('change', e => {
+  reversed = e.target.checked;
+  document.getElementById('h-dir-label').textContent =
+    reversed ? 'Deutsch → Latein' : 'Latein → Deutsch';
+  saveState();
+});
+document.getElementById('btn-list').addEventListener('click', () => {
+  const tbody = document.getElementById('list-table');
+  if (!tbody.hasChildNodes()) {
+    tbody.innerHTML = VOCAB.map(w =>
+      `<tr><td>${w.la}</td><td>${w.de}</td></tr>`
+    ).join('');
+  }
+  showScreen('screen-list');
+});
+document.getElementById('btn-list-back').addEventListener('click', () => {
+  showScreen('screen-home');
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if (confirm('Wirklich alle Fortschritte löschen?')) {
+    cards = {}; saveState(); renderHome();
+  }
+});
+
+document.getElementById('card-wrap').addEventListener('click', flipCard);
+
+document.querySelectorAll('.btn-rate').forEach(btn =>
+  btn.addEventListener('click', () => rate(+btn.dataset.r))
+);
+
+document.addEventListener('keydown', e => {
+  if (currentScreen !== 'screen-card') return;
+  if (e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); flipCard(); }
+  if (ses?.flipped) {
+    if (e.key === '1') rate(0);
+    if (e.key === '2') rate(1);
+    if (e.key === '3') rate(2);
+  }
+});
+
+/* ── init ─────────────────────────────────────────────────────────────────── */
+loadState();
+renderHome();
+showScreen('screen-home');
+</script>
+</body>
+</html>
