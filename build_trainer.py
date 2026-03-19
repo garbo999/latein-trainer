@@ -6,19 +6,33 @@ Latin vocabulary flashcard trainer.  Re-run whenever vocabulary.csv changes.
 
 import csv
 import json
+import os
 
-CSV_PATH  = "vocabulary.csv"
-HTML_PATH = "trainer.html"
+CSV_PATH       = "vocabulary.csv"
+HTML_PATH      = "trainer.html"
+SENTENCES_PATH = "sentences.json"
 
 
-def load_vocab(path):
+def load_vocab(path, sentences):
     with open(path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return [
-            {"id": i, "la": row["latin"].strip(), "de": row["german"].strip()}
+            {
+                "id": i,
+                "la": row["latin"].strip(),
+                "de": row["german"].strip(),
+                "ex": sentences.get(row["latin"].strip(), ""),
+            }
             for i, row in enumerate(reader)
             if row["latin"].strip() and row["german"].strip()
         ]
+
+
+def load_sentences(path):
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
 
 HTML_TEMPLATE = r"""<!DOCTYPE html>
@@ -90,9 +104,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     }
     .mastery-num {
       font-size: 2.4rem; font-weight: 700; color: var(--primary); line-height: 1;
-      margin-bottom: 14px;
+      margin-bottom: 6px;
     }
     .mastery-num span { font-size: 1.1rem; font-weight: 400; color: var(--muted); }
+    .seen-num {
+      font-size: 1rem; color: var(--muted); margin-bottom: 12px;
+    }
+    .seen-num strong { color: var(--warn); font-weight: 600; }
     .bucket-bar {
       display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--border);
     }
@@ -194,6 +212,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     }
     .card-hint { margin-top: 24px; font-size: .82rem; color: var(--muted); }
     .kbd-hint   { font-size: .72rem; color: #c4b5fd; margin-top: 4px; }
+    .card-example {
+      margin-top: 18px; font-size: .82rem; color: var(--muted);
+      font-style: italic; line-height: 1.5;
+    }
     /* rating */
     .rating-row {
       display: flex; gap: 10px; width: 100%; padding: 20px 0 8px;
@@ -250,6 +272,34 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     .m-la { font-style: italic; flex-shrink: 0; }
     .m-de { color: var(--muted); text-align: right; }
     .btn-main { margin-bottom: 10px; }
+
+    /* ── footer ───────────────────────────────────────────── */
+    .footer {
+      margin-top: auto; padding: 24px 0 8px;
+      font-size: .78rem; color: var(--muted);
+    }
+    .footer a { color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+    /* ── modal ────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface); border-radius: var(--r);
+      box-shadow: 0 8px 40px rgba(0,0,0,.2);
+      padding: 28px 28px 22px; max-width: 340px; width: 90%;
+    }
+    .modal-title { font-weight: 700; margin-bottom: 12px; }
+    .modal-body  { font-size: .88rem; color: var(--muted); line-height: 1.6; }
+    .modal-close {
+      margin-top: 18px; width: 100%; padding: 10px; border: none;
+      border-radius: var(--r); background: var(--border);
+      font-size: .9rem; font-weight: 600; cursor: pointer;
+    }
+    .modal-close:hover { background: #cbd5e1; }
   </style>
 </head>
 <body>
@@ -262,6 +312,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <div class="card-box">
     <div class="box-label">Fortschritt</div>
     <div class="mastery-num" id="h-mastery">0 <span>/ __TOTAL__ gelernt</span></div>
+    <div class="seen-num"   id="h-seen"></div>
     <div class="bucket-bar" id="h-bar"></div>
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:#e2e8f0"></div>Neu</div>
@@ -287,6 +338,20 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <button class="btn-main" id="btn-start">Übung starten (5 Karten)</button>
   <button class="btn-list-link" id="btn-list">Alle Vokabeln anzeigen</button>
   <button class="btn-reset" id="btn-reset">Fortschritt zurücksetzen</button>
+  <div class="footer"><a id="btn-datenschutz">Datenschutz</a></div>
+</div>
+
+<!-- ═══ DATENSCHUTZ MODAL ══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-datenschutz">
+  <div class="modal-box">
+    <div class="modal-title">Datenschutz</div>
+    <div class="modal-body">
+      Diese App speichert Daten (Lernfortschritt) ausschließlich lokal
+      in Ihrem Browser (localStorage). Es werden keine persönlichen Daten
+      erhoben, gespeichert oder übertragen.
+    </div>
+    <button class="modal-close" id="btn-datenschutz-close">Schließen</button>
+  </div>
 </div>
 
 <!-- ═══ LIST ═════════════════════════════════════════════════════════════════ -->
@@ -312,12 +377,14 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <div class="card-face card-front">
         <div class="card-pill" id="front-pill">Latein</div>
         <div class="card-text" id="front-text"></div>
+        <div class="card-example" id="front-example"></div>
         <div class="card-hint">Tippen zum Umdrehen</div>
         <div class="kbd-hint">[ Leertaste ]</div>
       </div>
       <div class="card-face card-back">
         <div class="card-pill" id="back-pill">Deutsch</div>
         <div class="card-text" id="back-text"></div>
+        <div class="card-example" id="back-example"></div>
         <div class="kbd-hint" style="margin-top:20px">[1] Nicht gewusst · [2] Fast · [3] Gewusst</div>
       </div>
     </div>
@@ -365,7 +432,7 @@ const VOCAB = __VOCAB_DATA__;
 /* ── constants ──────────────────────────────────────────────────────────── */
 const TOTAL         = VOCAB.length;
 const SESSION_SIZE  = 5;
-const MASTERY_AT    = 4;   // score threshold for "mastered"
+const MASTERY_AT    = 3;   // score threshold for "mastered"
 const STORAGE_KEY   = 'audrey-latin-v1';
 
 /* ── persistent state ───────────────────────────────────────────────────── */
@@ -427,8 +494,12 @@ function renderHome() {
     else                      unseen++;
   });
 
+  const seen = learning + mastered;
   document.getElementById('h-mastery').innerHTML =
     `${mastered} <span>/ ${TOTAL} gelernt</span>`;
+  document.getElementById('h-seen').innerHTML = seen > 0
+    ? `<strong>${seen}</strong> bereits gesehen &nbsp;·&nbsp; ${mastered} sicher gelernt`
+    : `Noch keine Vokabeln geübt`;
 
   const bar = document.getElementById('h-bar');
   const segs = [
@@ -468,6 +539,11 @@ function renderCard() {
   document.getElementById('front-text').textContent = front;
   document.getElementById('back-text').textContent  = back;
 
+  // Example sentence: on front only in LA→DE mode; on back always
+  const ex = w.ex || '';
+  document.getElementById('front-example').textContent = (!reversed && ex) ? ex : '';
+  document.getElementById('back-example').textContent  = ex;
+
   const wrap = document.getElementById('card-wrap');
   wrap.classList.remove('flipped');
   ses.flipped = false;
@@ -502,6 +578,7 @@ function rate(r) {
 /* ── SUMMARY ─────────────────────────────────────────────────────────────── */
 function showSummary() {
   const mastered = VOCAB.filter(w => cardOf(w.id).score >= MASTERY_AT).length;
+  const seen     = VOCAB.filter(w => cardOf(w.id).score > 0).length;
   const pct      = Math.round(ses.ok / ses.queue.length * 100);
 
   document.getElementById('sum-sub').textContent   = `${pct}% richtig in dieser Runde`;
@@ -509,7 +586,7 @@ function showSummary() {
   document.getElementById('s-alm').textContent     = ses.alm;
   document.getElementById('s-bad').textContent     = ses.bad;
   document.getElementById('s-mastery').innerHTML   =
-    `Insgesamt gelernt: <strong>${mastered} / ${TOTAL}</strong>`;
+    `Bereits gesehen: <strong>${seen} / ${TOTAL}</strong> &nbsp;·&nbsp; Sicher gelernt: <strong>${mastered} / ${TOTAL}</strong>`;
 
   const box   = document.getElementById('missed-box');
   const items = document.getElementById('missed-items');
@@ -578,6 +655,17 @@ document.addEventListener('keydown', e => {
   }
 });
 
+document.getElementById('btn-datenschutz').addEventListener('click', () => {
+  document.getElementById('modal-datenschutz').classList.add('open');
+});
+document.getElementById('btn-datenschutz-close').addEventListener('click', () => {
+  document.getElementById('modal-datenschutz').classList.remove('open');
+});
+document.getElementById('modal-datenschutz').addEventListener('click', e => {
+  if (e.target === e.currentTarget)
+    e.currentTarget.classList.remove('open');
+});
+
 /* ── init ─────────────────────────────────────────────────────────────────── */
 loadState();
 renderHome();
@@ -589,8 +677,12 @@ showScreen('screen-home');
 
 
 def main():
-    vocab = load_vocab(CSV_PATH)
+    sentences = load_sentences(SENTENCES_PATH)
+    vocab     = load_vocab(CSV_PATH, sentences)
     vocab_json = json.dumps(vocab, ensure_ascii=False)
+
+    with_ex = sum(1 for v in vocab if v["ex"])
+    print(f"Loaded {len(vocab)} vocab entries, {with_ex} with example sentences.")
 
     html = HTML_TEMPLATE.replace("__VOCAB_DATA__", vocab_json)
     html = html.replace("__TOTAL__", str(len(vocab)))
@@ -598,7 +690,7 @@ def main():
     with open(HTML_PATH, "w", encoding="utf-8") as f:
         f.write(html)
 
-    print(f"Written {HTML_PATH} with {len(vocab)} vocabulary entries.")
+    print(f"Written {HTML_PATH}.")
 
 
 if __name__ == "__main__":
