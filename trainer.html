@@ -426,7 +426,7 @@ function buildSession() {
   const now = Date.now();
   const scored = VOCAB.map(w => {
     const c  = cardOf(w.id);
-    const hrs = c.lastSeen ? (now - c.lastSeen) / 3_600_000 : 99_999;
+    const hrs = c.lastSeen ? (now - c.lastSeen) / 3_600_000 : Math.random() * 9_999;
     return { w, pri: (MASTERY_AT - Math.min(c.score, MASTERY_AT)) * 10_000 + Math.min(hrs, 9_999) };
   });
   scored.sort((a, b) => b.pri - a.pri);
