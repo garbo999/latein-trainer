@@ -254,6 +254,7 @@
       background: var(--surface); border-radius: var(--r);
       box-shadow: 0 8px 40px rgba(0,0,0,.2);
       padding: 28px 28px 22px; max-width: 340px; width: 90%;
+      max-height: 80vh; overflow-y: auto;
     }
     .modal-title { font-weight: 700; margin-bottom: 12px; }
     .modal-body  { font-size: .88rem; color: var(--muted); line-height: 1.6; }
@@ -301,7 +302,7 @@
   <button class="btn-main" id="btn-start">Übung starten (5 Karten)</button>
   <button class="btn-list-link" id="btn-list">Alle Vokabeln anzeigen</button>
   <button class="btn-reset" id="btn-reset">Fortschritt zurücksetzen</button>
-  <div class="footer"><a id="btn-datenschutz">Datenschutz</a></div>
+  <div class="footer"><a id="btn-datenschutz">Datenschutz</a> · <a id="btn-impressum">Impressum</a></div>
 </div>
 
 <!-- ═══ DATENSCHUTZ MODAL ══════════════════════════════════════════════════ -->
@@ -309,11 +310,44 @@
   <div class="modal-box">
     <div class="modal-title">Datenschutz</div>
     <div class="modal-body">
-      Diese App speichert Daten (Lernfortschritt) ausschließlich lokal
-      in Ihrem Browser (localStorage). Es werden keine persönlichen Daten
-      erhoben, gespeichert oder übertragen.
+      <strong>Verantwortliche</strong><br>
+      Gary Hess, Emil-Maier-Str. 1, 69115 Heidelberg<br>
+      E-Mail: hess.impressum@hesstranslations.com<br><br>
+
+      <strong>Keine Cookies</strong><br>
+      Diese Website verwendet keine Cookies.<br><br>
+
+      <strong>Lokaler Speicher (localStorage)</strong><br>
+      Diese Website speichert den Lernfortschritt im lokalen Speicher Ihres
+      Browsers (localStorage). Diese Informationen verbleiben ausschließlich
+      auf Ihrem Gerät und werden nicht an Server übertragen.<br><br>
+
+      <strong>Hosting</strong><br>
+      Diese Website wird über GitHub Pages (GitHub Inc., 88 Colin P Kelly Jr St,
+      San Francisco, CA 94107, USA) gehostet. Beim Abrufen der Seiten werden
+      technisch bedingt Verbindungsdaten einschließlich Ihrer IP-Adresse in
+      Server-Protokolldateien verarbeitet.<br><br>
+
+      <strong>Auskunft und Kontakt</strong><br>
+      Bei Fragen zum Datenschutz wenden Sie sich bitte an:
+      hess.impressum@hesstranslations.com
     </div>
     <button class="modal-close" id="btn-datenschutz-close">Schließen</button>
+  </div>
+</div>
+
+<!-- ═══ IMPRESSUM MODAL ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-impressum">
+  <div class="modal-box">
+    <div class="modal-title">Impressum</div>
+    <div class="modal-body">
+      <strong>Angaben gemäß § 5 TMG</strong><br>
+      Gary Hess<br>
+      Emil-Maier-Str. 1<br>
+      69115 Heidelberg<br><br>
+      E-Mail: hess.impressum@hesstranslations.com
+    </div>
+    <button class="modal-close" id="btn-impressum-close">Schließen</button>
   </div>
 </div>
 
@@ -625,6 +659,17 @@ document.getElementById('btn-datenschutz-close').addEventListener('click', () =>
   document.getElementById('modal-datenschutz').classList.remove('open');
 });
 document.getElementById('modal-datenschutz').addEventListener('click', e => {
+  if (e.target === e.currentTarget)
+    e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('btn-impressum').addEventListener('click', () => {
+  document.getElementById('modal-impressum').classList.add('open');
+});
+document.getElementById('btn-impressum-close').addEventListener('click', () => {
+  document.getElementById('modal-impressum').classList.remove('open');
+});
+document.getElementById('modal-impressum').addEventListener('click', e => {
   if (e.target === e.currentTarget)
     e.currentTarget.classList.remove('open');
 });
